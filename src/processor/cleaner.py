@@ -47,8 +47,14 @@ class DataCleaner:
         # 3. Tách từ tiếng Việt bằng PyVi (Quan trọng cho Semantic Search)
         # VD: "tính năng" -> "tính_năng"
         text = ViTokenizer.tokenize(text)
+
         
         return text
+    def remove_boilerplate(self, text):
+    boilerplate = "Giá sản phẩm trên Tiki đã bao gồm thuế"
+    if boilerplate in text:
+        return text.split(boilerplate)[0].strip()
+    return text
 
 # --- Phần Test chạy thử ---
 if __name__ == "__main__":
