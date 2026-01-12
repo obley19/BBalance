@@ -1,0 +1,13 @@
+Python artifactspycache/*.py[cod]*$py.class*.so.envvenv/.idea/.vscode/Project Datadata/raw/*!data/raw/.gitkeepdata/processed/*!data/processed/.gitkeepdata/indices/*!data/indices/.gitkeepLogs*.log
+---
+
+### 2. Tạo Môi trường ảo (Làm việc với TERMINAL)
+* **Vị trí:** Mở Terminal (Mac/Linux) hoặc CMD/Git Bash (Windows) tại thư mục `seg301-ecommerce-search`.
+* **Hành động:** Gõ từng lệnh sau và nhấn Enter.
+
+**Đối với Windows:**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+Đối với macOS / Linux:python3 -m venv venv
+source venv/bin/activate
