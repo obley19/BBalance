@@ -1,3 +1,17 @@
+---
+## 2026-01-12 12:25 | Claude
+
+**Yêu cầu**: Tự động ghi log mỗi lần chat vào file ai_log.md
+
+**Giải pháp**: 
+- Tạo workflow `/add-ai-log` tại `.agent/workflows/add-ai-log.md`
+- Format đơn giản: chỉ cần copy-paste nội dung chat với timestamp và tên AI
+- Sử dụng: gọi `/add-ai-log` để thêm log cuộc chat hiện tại
+
+**Kết quả**: Workflow đã được tạo thành công
+
+---
+
 Gemini
 
 Phân công đồ án SEG301 Search Engine

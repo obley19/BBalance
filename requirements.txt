@@ -1,14 +1,16 @@
-﻿#Core Crawling
+﻿# Core Crawling
 requests>=2.31.0
-aiohttp>=3.9.0 # Dùng cho Async request (tốc độ cao)
-fake-useragent>=1.4.0 # Để giả lập trình duyệt, tránh bị block
-Data Processing
-pandas>=2.1.0 # Để xem và thống kê dữ liệu
-pyvi>=0.1.1 # Thư viện tách từ tiếng Việt (Bắt buộc cho Project này)
-numpy>=1.26.0
-Testing
-pytest>=7.4.0
-Utils
-tqdm>=4.66.0 # Thanh hiển thị tiến độ (Progress bar) khi crawl
-python-dotenv>=1.0.0
+aiohttp>=3.9.0
+fake-useragent>=1.4.0
 
+# Data Processing
+pandas>=2.1.0
+pyvi>=0.1.1
+numpy>=1.26.0
+
+# Testing
+pytest>=7.4.0
+
+# Utils
+tqdm>=4.66.0
+python-dotenv>=1.0.0
