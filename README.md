@@ -47,18 +47,40 @@ cp .env.example .env
 ## Cấu trúc thư mục
 
 ```
-seg301-ecommerce-search/
-├── src/                    # Source code chính
-│   ├── crawlers/          # Các crawler cho từng platform
-│   └── utils/             # Các tiện ích
-├── data/                   # Dữ liệu (không upload lên git)
-│   ├── raw/               # Dữ liệu thô từ crawler
-│   ├── processed/         # Dữ liệu đã xử lý
-│   └── indices/           # Search indices
-├── tests/                  # Unit tests
-├── requirements.txt        # Python dependencies
-└── .gitignore             # File cấu hình git ignore
+SEG301-Project/
+├── .gitignore               # File cấu hình git ignore
+├── README.md                # Hướng dẫn cài đặt, chạy dự án & Link tải Full Dataset
+├── ai_log.md                # Nhật ký sử dụng AI (Cập nhật liên tục theo ngày)
+├── requirements.txt         # Danh sách các thư viện cần thiết
+├── docs/                    # Thư mục chứa báo cáo (PDF/Markdown)
+│   ├── Milestone1_Report.pdf
+│   ├── Milestone2_Report.pdf
+│   └── Milestone3_Presentation.pdf
+├── data_sample/             # Chỉ chứa 100-500 docs mẫu (KHÔNG UP 1 TRIỆU DOCS)
+│   └── sample.jsonl
+├── src/                     # Source code chính
+│   ├── __init__.py
+│   ├── crawler/             # Milestone 1: Code thu thập dữ liệu
+│   │   ├── spider.py        # Logic crawl chính
+│   │   ├── parser.py        # Xử lý HTML, tách từ
+│   │   └── utils.py         # Hàm phụ trợ (Proxy, User-agent)
+│   ├── indexer/             # Milestone 2: Code tạo chỉ mục
+│   │   ├── spimi.py         # Thuật toán SPIMI
+│   │   ├── merging.py       # Logic merge block
+│   │   └── compression.py   # Nén dữ liệu (nếu có)
+│   ├── ranking/             # Milestone 2 & 3: Code xếp hạng
+│   │   ├── bm25.py          # Thuật toán BM25 (Code tay)
+│   │   └── vector.py        # Semantic Search (Dùng thư viện cho M3)
+│   └── ui/                  # Milestone 3: Giao diện người dùng
+│       └── app.py           # Streamlit/Flask app
+└── tests/                   # Unit tests cho các thuật toán core
+    ├── test_spimi.py
+    └── test_bm25.py
 ```
+
+## Full Dataset
+
+> Link tải dữ liệu đầy đủ (1 triệu docs): [Google Drive / OneDrive Link]
 
 ## Chạy tests
 

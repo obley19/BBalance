@@ -1,13 +1,36 @@
-Python artifactspycache/*.py[cod]*$py.class*.so.envvenv/.idea/.vscode/Project Datadata/raw/*!data/raw/.gitkeepdata/processed/*!data/processed/.gitkeepdata/indices/*!data/indices/.gitkeepLogs*.log
----
+# --- Virtual Environment (QUAN TRỌNG) ---
+# Dòng này chặn folder venv không được up lên git
+venv/
+env/
+.venv/
 
-### 2. Tạo Môi trường ảo (Làm việc với TERMINAL)
-* **Vị trí:** Mở Terminal (Mac/Linux) hoặc CMD/Git Bash (Windows) tại thư mục `seg301-ecommerce-search`.
-* **Hành động:** Gõ từng lệnh sau và nhấn Enter.
+# --- Python Artifacts (File rác khi chạy code) ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
-**Đối với Windows:**
-```cmd
-python -m venv venv
-venv\Scripts\activate
-Đối với macOS / Linux:python3 -m venv venv
-source venv/bin/activate
+# --- Environment Variables (Bảo mật) ---
+# Chứa key/pass, tuyệt đối không up
+.env
+
+# --- IDE Settings (Cấu hình riêng của máy cá nhân) ---
+.idea/
+.vscode/
+
+# --- Project Data Management ---
+# Giữ lại cấu trúc thư mục nhưng không up dữ liệu bên trong
+# Raw Data
+data/raw/*
+!data/raw/.gitkeep
+
+# Processed Data
+data/processed/*
+!data/processed/.gitkeep
+
+# Indices (Search Index)
+data/indices/*
+!data/indices/.gitkeep
+
+# --- Logs ---
+*.log
