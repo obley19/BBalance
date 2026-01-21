@@ -999,17 +999,999 @@ Nếu cách 1 bạn copy bị thiếu hoặc sai định dạng, hãy dùng các
 5. **Bước 8:** Nhìn xuống dưới, web sẽ tự sinh ra code Python.
 * Bạn tìm biến `cookies = { ... }` hoặc `headers = { ... }`.
 * Copy đúng cái chuỗi dài ngoằng trong phần `'Cookie': '...'` đó.
+DATE 21/1/2026
+Câu trả lời là: **KHÔNG**.
+
+Với đoạn code hiện tại, mỗi lần bạn chạy lại file script này, **dữ liệu cũ sẽ bị xóa sạch hoàn toàn** và thay thế bằng dữ liệu mới.
+
+**Lý do nằm ở đoạn cuối của code (dòng 82-83):**
+
+```python
+if __name__ == "__main__":
+    if os.path.exists(OUTPUT_FILE):
+        os.remove(OUTPUT_FILE)  # <--- Dòng này lệnh cho máy tính XÓA file cũ nếu nó tồn tại
+
+```
+
+### Cách hoạt động cụ thể của code bạn:
+
+1. **Bước 1:** Khi bạn bấm chạy, code kiểm tra xem file `data/tiki_all.jsonl` có tồn tại không.
+2. **Bước 2:** Nếu có, nó **xóa vĩnh viễn** file đó (`os.remove`).
+3. **Bước 3:** Sau đó nó mới bắt đầu crawl và tạo file mới tinh để ghi dữ liệu vào.
+
+---
+
+### 💡 Nếu bạn muốn GIỮ LẠI data cũ và chỉ nối thêm data mới vào:
+
+Bạn cần **xóa hoặc comment (vô hiệu hóa)** dòng code xóa file đi. Hãy sửa đoạn cuối thành như sau:
+
+```python
+# ================== MAIN ==================
+if __name__ == "__main__":
+    # if os.path.exists(OUTPUT_FILE):  <-- Thêm dấu # ở đầu để vô hiệu hóa
+    #     os.remove(OUTPUT_FILE)       <-- Thêm dấu # ở đầu để vô hiệu hóa
+
+    for cat in TIKI_CATEGORIES:
+        crawl_tiki_category(cat["name"], cat["id"], max_pages=100)
+    
+    # ... (phần còn lại giữ nguyên)
+
+```
+
+Khi đó, chế độ mở file `mode="a"` (append) ở trong hàm `crawl_tiki_category` sẽ phát huy tác dụng là nối tiếp dữ liệu mới vào đuôi file cũ thay vì xóa đi.
+Để làm được việc này (lần 1 crawl 10.000, lần 2 crawl tiếp 10.000 -> file có 20.000), bạn cần thay đổi 2 logic quan trọng trong code:
+
+1. **Không xóa file cũ:** Bỏ đoạn lệnh `os.remove`.
+2. **Đọc lại dữ liệu cũ trước khi chạy:** Để tránh việc lần 2 crawl lại dính những sản phẩm đã có ở lần 1 (tránh trùng lặp), bạn cần load các ID đã có vào biến `SEEN`.
+
+Dưới đây là đoạn code đã được sửa đổi tối ưu cho việc **cập nhật/nối tiếp dữ liệu**:
+
+### Code sửa đổi
+
+```python
+import requests
+import time
+import random
+import os
+import json  # Cần thêm thư viện json để đọc file cũ
+from schema_shared import ProductItem
+
+print("📂 CWD =", os.getcwd())
+
+# ================== CONFIG ==================
+DATA_FOLDER = "data"
+os.makedirs(DATA_FOLDER, exist_ok=True)
+
+OUTPUT_FILE = os.path.join(DATA_FOLDER, "tiki_all.jsonl")
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "vi-VN,vi;q=0.9",
+    "Referer": "https://tiki.vn/",
+}
+
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
+
+SEEN = set()
+
+# === [MỚI] HÀM ĐỌC DỮ LIỆU CŨ ĐỂ TRÁNH TRÙNG LẶP ===
+def load_existing_data():
+    if not os.path.exists(OUTPUT_FILE):
+        return
+    
+    print(f"🔄 Đang đọc dữ liệu cũ từ {OUTPUT_FILE}...")
+    count = 0
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    # Giả sử id trong file jsonl là "tiki_12345" hoặc field id
+                    if "id" in data:
+                        SEEN.add(data["id"])
+                        count += 1
+                except:
+                    continue
+    except Exception as e:
+        print(f"⚠️ Lỗi đọc file cũ: {e}")
+    
+    print(f"✅ Đã tải {count} sản phẩm cũ vào bộ nhớ (SEEN).")
+
+# ================== CRAWL 1 CATEGORY ==================
+def crawl_tiki_category(name, cid, max_pages=50):
+    print(f"\n🚀 [TIKI] START {name} ({cid})")
+
+    for page in range(1, max_pages + 1):
+        print(f"[{name}] Page {page}/{max_pages}")
+
+        url = (
+            "https://tiki.vn/api/personalish/v1/blocks/listings"
+            f"?limit=40&include=advertisement"
+            f"&aggregations=2&version=home-persionalized"
+            f"&trackity_id=123&category={cid}&page={page}"
+        )
+
+        try:
+            resp = SESSION.get(url, timeout=20)
+            if resp.status_code != 200:
+                print("⚠️ HTTP", resp.status_code)
+                break
+
+            items = resp.json().get("data", [])
+            if not items:
+                break
+
+            # Mở file mode 'a' (append) để ghi nối tiếp
+            with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+                new_items_count = 0
+                for item in items:
+                    pid = f"tiki_{item.get('id')}"
+                    
+                    # QUAN TRỌNG: Kiểm tra xem đã có trong lần crawl trước chưa
+                    if pid in SEEN:
+                        continue
+                    
+                    SEEN.add(pid) # Đánh dấu là đã thấy
+
+                    original_price = item.get("list_price") or item.get("price")
+
+                    product = ProductItem(
+                        id=pid,
+                        platform="tiki",
+                        title=item.get("name", ""),
+                        price=int(item.get("price", 0)),
+                        original_price=int(original_price or 0),
+                        url="https://tiki.vn/" + item.get("url_path", ""),
+                        image_url=item.get("thumbnail_url", ""),
+                        category=name,
+                        brand=item.get("brand_name", "No Brand"),
+                    )
+
+                    f.write(product.to_json_line() + "\n")
+                    new_items_count += 1
+                
+                if new_items_count > 0:
+                    print(f"   -> Đã ghi thêm {new_items_count} sản phẩm mới.")
+
+            time.sleep(random.uniform(1, 2))
+
+        except Exception as e:
+            print("❌ Error:", e)
+            time.sleep(3)
+
+    print(f"✅ [TIKI] FINISH {name}")
+
+# ================== CATEGORY LIST ==================
+TIKI_CATEGORIES = [
+    {"name": "dua-muong-nia", "id": 3179},
+    # Thêm các category khác...
+]
+
+# ================== MAIN ==================
+if __name__ == "__main__":
+    # 1. KHÔNG XÓA FILE CŨ (Đã bỏ dòng os.remove)
+    
+    # 2. Load dữ liệu cũ lên RAM để check trùng
+    load_existing_data()
+
+    # 3. Chạy crawl
+    for cat in TIKI_CATEGORIES:
+        crawl_tiki_category(cat["name"], cat["id"], max_pages=100)
+
+    print("\n🎉 DONE – TIKI UPDATE COMPLETED")
+    print("📦 Total unique items in SEEN:", len(SEEN))
+
+```
+
+### Giải thích các thay đổi:
+
+1. **Giữ nguyên định dạng `.jsonl`:**
+* Đây là định dạng tốt nhất cho Big Data và Scraping.
+* Nếu bạn dùng `.json` thường (dạng danh sách `[...]`), mỗi lần thêm dữ liệu bạn phải đọc toàn bộ 10.000 dòng cũ lên, thêm vào, rồi ghi lại toàn bộ 20.000 dòng. Rất nặng máy và dễ lỗi file.
+* Dùng `.jsonl` (mỗi dòng 1 object), bạn chỉ việc ghi nối tiếp vào cuối file (append), rất nhanh và an toàn.
+
+
+2. **Hàm `load_existing_data()`:**
+* Hàm này chạy đầu tiên. Nó mở file `tiki_all.jsonl` hiện có, đọc hết các ID sản phẩm và lưu vào tập hợp `SEEN`.
+* Ví dụ: File cũ có sản phẩm A, B. Khi chạy lần 2, code biết A và B đã tồn tại.
+
+
+3. **Check trùng lặp (`if pid in SEEN: continue`):**
+* Khi crawl trang mới, nếu gặp lại sản phẩm A, code sẽ bỏ qua, không ghi vào file nữa. File của bạn sẽ chỉ chứa các sản phẩm duy nhất (Unique).
+
+
+
+**Kết quả:**
+
+* Chạy lần 1: File có 10.000 dòng.
+* Chạy lần 2 (có thể crawl category khác, hoặc crawl thêm trang mới): File sẽ nối thêm dữ liệu thành 20.000 dòng. Các sản phẩm cũ vẫn được giữ nguyên.
+* Dưới đây là giải thích chi tiết về cơ chế hoạt động của đoạn code mới (phiên bản cập nhật dữ liệu) và chiến thuật crawl mà code này đang sử dụng.
+
+### 1. Tư duy cốt lõi: "Không quên quá khứ"
+
+Khác với code cũ (xóa đi làm lại), code mới hoạt động theo nguyên tắc **tích lũy**. Nó giống như việc bạn viết nhật ký: ngày hôm nay viết tiếp vào trang sau của ngày hôm qua, chứ không xé bỏ cuốn sổ đi.
+
+Quy trình xử lý gồm 3 bước chính:
+
+1. **Nhớ lại (Load):** Xem mình đã có gì rồi.
+2. **Lọc (Filter):** Khi đi lấy cái mới, nếu thấy cái đã có rồi thì bỏ qua.
+3. **Ghi tiếp (Append):** Chỉ ghi những cái thực sự mới vào cuối file.
+
+---
+
+### 2. Giải thích chi tiết từng phần code
+
+#### A. Hàm `load_existing_data()` - "Kiểm hàng tồn kho"
+
+Đây là phần quan trọng nhất được thêm vào.
+
+```python
+def load_existing_data():
+    # ... (code mở file)
+    with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            data = json.loads(line)
+            if "id" in data:
+                SEEN.add(data["id"]) # <--- MẤU CHỐT
+
+```
+
+* **Mục đích:** Trước khi bắt đầu crawl, máy tính mở file `tiki_all.jsonl` ra đọc một lượt.
+* **Biến `SEEN`:** Là một tập hợp (`set`) chứa các ID sản phẩm (ví dụ: `tiki_123`, `tiki_456`).
+* **Tác dụng:** Giúp chương trình "biết" là sản phẩm nào đã nằm trong file rồi để lát nữa không cào lại nữa.
+
+#### B. Chế độ mở file `mode="a"` - "Viết nối đuôi"
+
+Trong hàm `crawl_tiki_category`:
+
+```python
+with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+
+```
+
+* **`"w"` (Write - cũ):** Mở file ra, xóa trắng mọi thứ bên trong, viết từ đầu.
+* **`"a"` (Append - mới):** Mở file ra, con trỏ chuột nhảy xuống **dòng cuối cùng**, viết tiếp dữ liệu mới vào đó. Dữ liệu cũ vẫn an toàn.
+
+#### C. Logic lọc trùng lặp
+
+```python
+pid = f"tiki_{item.get('id')}"
+
+if pid in SEEN:  # <--- HÀNG RÀO BẢO VỆ
+    continue     # Nếu đã thấy ID này rồi thì bỏ qua ngay, không làm gì cả
+    
+SEEN.add(pid)    # Nếu chưa thấy, thêm vào danh sách đã thấy
+# ... sau đó mới ghi vào file
+
+```
+
+* Đoạn này đảm bảo dù bạn chạy code 100 lần, file kết quả cũng không bao giờ có 2 dòng chứa cùng 1 sản phẩm.
+
+---
+
+### 3. Chiến thuật Crawl (Cách lấy dữ liệu)
+
+Code này sử dụng phương pháp **API Crawling** (giả lập request API), chứ không phải HTML Parsing (như dùng BeautifulSoup).
+
+* **API Endpoint:**
+`https://tiki.vn/api/personalish/v1/blocks/listings...`
+* **Cách hoạt động:**
+1. Khi bạn lướt web Tiki, trình duyệt âm thầm gửi yêu cầu đến máy chủ Tiki để lấy danh sách sản phẩm.
+2. Máy chủ Tiki trả về dữ liệu dạng **JSON** (chữ thô, có cấu trúc), không phải giao diện hình ảnh.
+3. Code của bạn giả vờ làm trình duyệt (nhờ `HEADERS` và `User-Agent`) để gọi đúng đường dẫn đó.
+
+
+* **Ưu điểm của cách này:**
+* **Tốc độ siêu nhanh:** Vì không phải tải hình ảnh, CSS, quảng cáo... chỉ tải dữ liệu chữ.
+* **Dữ liệu sạch:** Lấy được chính xác giá, ID, tên mà không cần phải "bới" trong đống thẻ HTML `<div>`, `<span>` phức tạp.
+* **Ít bị chặn hơn:** So với việc cào HTML liên tục.
+
+
+
+### 4. Tóm tắt luồng đi của dữ liệu
+
+1. **Khởi động:** Tạo thư mục `data`.
+2. **Check kho:** Đọc file `tiki_all.jsonl` (nếu có) -> nạp 10.000 ID cũ vào RAM (`SEEN`).
+3. **Vào việc (Vòng lặp trang 1 -> 100):**
+* Gọi API lấy 40 sản phẩm.
+* Duyệt từng sản phẩm:
+* Sản phẩm A (ID: 111): Có trong `SEEN` chưa? -> **Có** -> Bỏ qua.
+* Sản phẩm B (ID: 222): Có trong `SEEN` chưa? -> **Chưa** -> Ghi vào cuối file `tiki_all.jsonl` -> Thêm 222 vào `SEEN`.
+
+
+
+
+4. **Kết thúc:** File `tiki_all.jsonl` giờ chứa 10.000 cũ + các sản phẩm mới tìm được.
+
+### 5. Lưu ý quan trọng về định dạng `.jsonl`
+
+Bạn đang lưu file dưới dạng **JSON Lines** (mỗi dòng là một object JSON độc lập).
+
+* **Ưu điểm:** Có thể ghi thêm (append) cực dễ.
+* **Nhược điểm:** Không thể mở trực tiếp bằng `json.load()` thông thường (sẽ lỗi), mà phải đọc từng dòng (line-by-line) như trong hàm `load_existing_data` mình viết.
+* Câu trả lời là: **CÓ, chạy nhanh hơn RẤT NHIỀU.**
+
+Nếu code hiện tại chạy mất **10 phút**, thì code đa luồng (Multi-threading) có thể chỉ mất **1-2 phút**.
+
+### Tại sao lại nhanh hơn?
+
+* **Code hiện tại (Đơn luồng - Single Thread):** Giống như 1 shipper đi giao hàng. Giao xong đơn 1, quay về kho lấy đơn 2 đi giao tiếp. Thời gian "chết" là lúc chờ xe chạy (chờ phản hồi từ Tiki).
+* **Code đa luồng (Multi-threading):** Giống như bạn thuê 10 shipper. Cùng lúc 10 người chạy đi lấy hàng ở 10 trang khác nhau. Ai về trước thì ghi dữ liệu trước. Tận dụng tối đa thời gian chờ.
+
+---
+
+### ⚠️ RỦI RO LỚN CẦN LƯU Ý
+
+Tiki **rất ghét** việc bị spam request quá nhanh.
+
+* Nếu bạn mở **quá nhiều luồng** (ví dụ 50-100 luồng), Tiki sẽ nghĩ bạn là hacker tấn công (DDOS) và **khóa IP vĩnh viễn** trong vài giờ/ngày.
+* **Giải pháp:** Chỉ nên dùng khoảng **5 đến 10 luồng** (workers) và vẫn phải giữ `sleep` nhẹ.
+
+---
+
+### CODE NÂNG CẤP: ĐA LUỒNG + CHỐNG TRÙNG + GHI FILE AN TOÀN
+
+Dưới đây là phiên bản "xịn" nhất, sử dụng thư viện `concurrent.futures` để quản lý luồng và `threading.Lock` để tránh lỗi khi 2 luồng cùng ghi vào 1 file.
+
+```python
+import requests
+import time
+import random
+import os
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from schema_shared import ProductItem
+
+print("📂 CWD =", os.getcwd())
+
+# ================== CONFIG ==================
+DATA_FOLDER = "data"
+os.makedirs(DATA_FOLDER, exist_ok=True)
+OUTPUT_FILE = os.path.join(DATA_FOLDER, "tiki_all.jsonl")
+
+# Số lượng luồng chạy song song (Đừng để quá cao kẻo bị chặn IP)
+MAX_WORKERS = 5 
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://tiki.vn/",
+}
+
+# Khóa an toàn để các luồng không tranh nhau ghi file cùng lúc
+FILE_LOCK = threading.Lock()
+SEEN_LOCK = threading.Lock()
+
+SEEN = set()
+
+# ================== HÀM HỖ TRỢ ==================
+def load_existing_data():
+    if not os.path.exists(OUTPUT_FILE):
+        return
+    print(f"🔄 Đang đọc dữ liệu cũ...")
+    count = 0
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if "id" in data:
+                        SEEN.add(data["id"])
+                        count += 1
+                except:
+                    continue
+    except Exception as e:
+        print(f"⚠️ Lỗi đọc file: {e}")
+    print(f"✅ Đã tải {count} sản phẩm cũ vào bộ nhớ.")
+
+def save_items_to_file(items, category_name):
+    """Hàm này được bảo vệ bởi Lock, chỉ 1 luồng được ghi tại 1 thời điểm"""
+    new_count = 0
+    
+    # Mở file và ghi ngay lập tức
+    with FILE_LOCK: # <--- KHÓA FILE
+        with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+            for item in items:
+                pid = f"tiki_{item.get('id')}"
+                
+                # Kiểm tra trùng lặp an toàn
+                if pid in SEEN:
+                    continue
+                
+                SEEN.add(pid) # Thêm vào bộ nhớ
+                
+                original_price = item.get("list_price") or item.get("price")
+                product = ProductItem(
+                    id=pid,
+                    platform="tiki",
+                    title=item.get("name", ""),
+                    price=int(item.get("price", 0)),
+                    original_price=int(original_price or 0),
+                    url="https://tiki.vn/" + item.get("url_path", ""),
+                    image_url=item.get("thumbnail_url", ""),
+                    category=category_name,
+                    brand=item.get("brand_name", "No Brand"),
+                )
+                f.write(product.to_json_line() + "\n")
+                new_count += 1
+                
+    return new_count
+
+# ================== CRAWL 1 TRANG (NHIỆM VỤ CỦA 1 LUỒNG) ==================
+def crawl_single_page(category_name, category_id, page):
+    # Mỗi luồng tự tạo session hoặc dùng request rời để tránh xung đột
+    url = (
+        "https://tiki.vn/api/personalish/v1/blocks/listings"
+        f"?limit=40&include=advertisement"
+        f"&aggregations=2&version=home-persionalized"
+        f"&trackity_id=123&category={category_id}&page={page}"
+    )
+    
+    try:
+        # Giả lập delay ngẫu nhiên nhỏ để tránh bị server nghi ngờ
+        time.sleep(random.uniform(0.5, 1.5))
+        
+        resp = requests.get(url, headers=HEADERS, timeout=20)
+        if resp.status_code != 200:
+            return f"❌ Page {page} lỗi HTTP {resp.status_code}"
+            
+        items = resp.json().get("data", [])
+        if not items:
+            return f"⚠️ Page {page} không có dữ liệu (Hết hàng?)"
+
+        # Gọi hàm lưu an toàn
+        added = save_items_to_file(items, category_name)
+        
+        return f"✅ {category_name} - Page {page}: Lấy {len(items)}, Mới {added}"
+
+    except Exception as e:
+        return f"❌ Lỗi Page {page}: {e}"
+
+# ================== MAIN ==================
+TIKI_CATEGORIES = [
+    {"name": "nha-sach-tiki", "id": 8322},
+    {"name": "dien-thoai-may-tinh-bang", "id": 1789},
+    {"name": "lam-dep-suc-khoe", "id": 1520},
+    {"name": "dien-gia-dung", "id": 1882},
+    {"name": "thoi-trang-nu", "id": 931}
+]
+
+if __name__ == "__main__":
+    load_existing_data()
+    
+    # Tạo danh sách các nhiệm vụ (Tasks)
+    # Ví dụ: [Cat A - Page 1, Cat A - Page 2, ..., Cat B - Page 1...]
+    all_tasks = []
+    MAX_PAGES = 50 # Số trang muốn cào mỗi danh mục
+    
+    for cat in TIKI_CATEGORIES:
+        for p in range(1, MAX_PAGES + 1):
+            all_tasks.append((cat["name"], cat["id"], p))
+            
+    print(f"\n🚀 BẮT ĐẦU CHẠY ĐA LUỒNG: {MAX_WORKERS} workers cho {len(all_tasks)} trang...")
+    
+    # Bắt đầu chạy song song
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Gửi tất cả nhiệm vụ vào bể (Pool)
+        future_to_page = {
+            executor.submit(crawl_single_page, t[0], t[1], t[2]): t 
+            for t in all_tasks
+        }
+        
+        # Chờ và in kết quả khi từng luồng hoàn thành
+        for future in as_completed(future_to_page):
+            result = future.result()
+            print(result)
+
+    print("\n🎉 DONE – TIKI MULTI-THREAD FINISHED")
+    print("📦 Total unique items in SEEN:", len(SEEN))
+
+```
+
+### Giải thích sự thay đổi:
+
+1. **`ThreadPoolExecutor`:** Đây là "ông chủ" quản lý nhân viên. Mình set `MAX_WORKERS = 5`, nghĩa là luôn có 5 "nhân viên" làm việc cùng lúc. Nhân viên 1 xong trang 1 sẽ lập tức lấy trang 6 làm tiếp, không ngồi chơi.
+2. **`FILE_LOCK`:** Đây là cái "chìa khóa". Vì 5 nhân viên cùng chạy, nếu 2 người cùng cầm bút viết vào file `tiki_all.jsonl` cùng lúc thì file sẽ lỗi dòng. Lock đảm bảo tại 1 tích tắc, chỉ 1 người được viết.
+3. **Bỏ vòng lặp tuần tự:** Thay vì `for category -> for page` (chạy hết cái này tới cái kia), mình tạo một danh sách `all_tasks` chứa tất cả các trang cần cào (ví dụ 500 trang), rồi ném hết vào máy xử lý song song.
+
+**Bạn chạy thử xem, tốc độ sẽ "xé gió" so với bản cũ!**
+Chào bạn, để chuyển mã nguồn này sang xử lý **Đa luồng (Multi-threading)**, chúng ta cần giải quyết 2 vấn đề quan trọng để code chạy nhanh mà không bị lỗi:
+
+1. **Tranh chấp tài nguyên (Race Condition):** Khi nhiều luồng cùng muốn viết vào file `tiki_all.jsonl` hoặc cùng kiểm tra biến `SEEN` một lúc, dữ liệu sẽ bị lỗi hoặc ghi đè lung tung. -> **Giải pháp:** Dùng `Lock` (Khóa an toàn).
+2. **Quản lý luồng:** Thay vì chạy vòng lặp `for` từ trên xuống dưới, ta sẽ tạo một danh sách các "Nhiệm vụ" (Task) và giao cho một nhóm "Công nhân" (Workers) làm cùng lúc.
+
+Dưới đây là đoạn code đã được nâng cấp hoàn chỉnh:
+
+### Code Python Đa Luồng (Multi-threading)
+
+```python
+import requests
+import time
+import random
+import os
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from schema_shared import ProductItem
+
+print("📂 CWD =", os.getcwd())
+
+# ================== CONFIG ==================
+DATA_FOLDER = "data"
+os.makedirs(DATA_FOLDER, exist_ok=True)
+OUTPUT_FILE = os.path.join(DATA_FOLDER, "tiki_all.jsonl")
+
+# CẤU HÌNH ĐA LUỒNG
+MAX_WORKERS = 5  # Số luồng chạy cùng lúc (Khuyên dùng 5-10 để tránh bị Tiki chặn IP)
+MAX_PAGES = 100  # Số trang muốn cào cho mỗi danh mục
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "vi-VN,vi;q=0.9",
+    "Referer": "https://tiki.vn/",
+}
+
+# TẠO KHÓA AN TOÀN (LOCK)
+# Lock này giúp đảm bảo tại 1 thời điểm chỉ có 1 luồng được ghi file và sửa SEEN
+FILE_LOCK = threading.Lock()
+
+SEEN = set()
+
+# ================== HÀM HỖ TRỢ ==================
+def load_existing_data():
+    if not os.path.exists(OUTPUT_FILE):
+        return
+    
+    print(f"🔄 Đang đọc dữ liệu cũ từ {OUTPUT_FILE}...")
+    count = 0
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if "id" in data:
+                        SEEN.add(data["id"])
+                        count += 1
+                except:
+                    continue
+    except Exception as e:
+        print(f"⚠️ Lỗi đọc file cũ: {e}")
+    
+    print(f"✅ Đã tải {count} sản phẩm cũ vào bộ nhớ (SEEN).")
+
+def save_items_safe(items, category_name):
+    """
+    Hàm này chịu trách nhiệm lọc trùng và ghi file.
+    Được bảo vệ bởi FILE_LOCK để tránh 2 luồng ghi đè lên nhau.
+    """
+    new_items_count = 0
+    
+    # BẮT ĐẦU KHÓA (Các luồng khác phải đứng chờ ở đây)
+    with FILE_LOCK:
+        with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+            for item in items:
+                pid = f"tiki_{item.get('id')}"
+                
+                # Kiểm tra trùng lặp
+                if pid in SEEN:
+                    continue
+                
+                SEEN.add(pid) # Thêm vào danh sách đã thấy
+
+                original_price = item.get("list_price") or item.get("price")
+
+                product = ProductItem(
+                    id=pid,
+                    platform="tiki",
+                    title=item.get("name", ""),
+                    price=int(item.get("price", 0)),
+                    original_price=int(original_price or 0),
+                    url="https://tiki.vn/" + item.get("url_path", ""),
+                    image_url=item.get("thumbnail_url", ""),
+                    category=category_name,
+                    brand=item.get("brand_name", "No Brand"),
+                )
+
+                f.write(product.to_json_line() + "\n")
+                new_items_count += 1
+    # KẾT THÚC KHÓA (Giải phóng cho luồng khác vào)
+    
+    return new_items_count
+
+# ================== CRAWL 1 PAGE (WORKER) ==================
+def crawl_single_page(category_name, category_id, page):
+    """
+    Nhiệm vụ của 1 luồng: Tải 1 trang cụ thể và gọi hàm lưu.
+    """
+    url = (
+        "https://tiki.vn/api/personalish/v1/blocks/listings"
+        f"?limit=40&include=advertisement"
+        f"&aggregations=2&version=home-persionalized"
+        f"&trackity_id=123&category={category_id}&page={page}"
+    )
+
+    try:
+        # Sleep ngẫu nhiên để giảm tải cho server (tránh bị ban)
+        time.sleep(random.uniform(0.5, 2.0))
+        
+        # Mỗi luồng dùng requests riêng lẻ (hoặc tạo session cục bộ nếu cần)
+        resp = requests.get(url, headers=HEADERS, timeout=20)
+        
+        if resp.status_code != 200:
+            return f"⚠️ {category_name} - Page {page}: HTTP {resp.status_code}"
+
+        items = resp.json().get("data", [])
+        if not items:
+            return f"⚠️ {category_name} - Page {page}: Không có dữ liệu (Hết trang?)"
+
+        # Gọi hàm lưu an toàn (Thread-safe save)
+        added_count = save_items_safe(items, category_name)
+        
+        if added_count > 0:
+            return f"✅ {category_name} - Page {page}: Thêm {added_count} món mới."
+        else:
+            return f"DATA {category_name} - Page {page}: 40 món đã tồn tại (Skip)."
+
+    except Exception as e:
+        return f"❌ {category_name} - Page {page}: Lỗi {str(e)}"
+
+# ================== CATEGORY LIST ==================
+TIKI_CATEGORIES = [
+    {"name": "DODUNGPHONGNGU", "id": 8313},
+    {"name": "NHABEP", "id": 1951},
+    {"name": "PHONGAN", "id": 1954},
+    {"name": "NOITHAT", "id": 2150},
+    {"name": "TRANGTRINHACUA", "id": 1973},
+]
+
+# ================== MAIN ==================
+if __name__ == "__main__":
+    # 1. Load dữ liệu cũ
+    load_existing_data()
+
+    # 2. Tạo danh sách các nhiệm vụ (Tasks)
+    # Chúng ta sẽ biến vòng lặp lồng nhau thành 1 danh sách phẳng
+    all_tasks = []
+    for cat in TIKI_CATEGORIES:
+        for p in range(1, MAX_PAGES + 1):
+            all_tasks.append((cat["name"], cat["id"], p))
+    
+    print(f"\n🚀 BẮT ĐẦU CRAWL ĐA LUỒNG")
+    print(f"👉 Số luồng (Workers): {MAX_WORKERS}")
+    print(f"👉 Tổng số trang cần xử lý: {len(all_tasks)}")
+    print("-" * 50)
+
+    # 3. Khởi tạo Pool và chạy
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Submit tất cả task vào pool
+        # future_to_page là từ điển map giữa task đang chạy và dữ liệu đầu vào
+        future_to_page = {
+            executor.submit(crawl_single_page, t[0], t[1], t[2]): t 
+            for t in all_tasks
+        }
+        
+        # Xử lý kết quả khi từng task hoàn thành (không cần theo thứ tự)
+        for future in as_completed(future_to_page):
+            try:
+                result_message = future.result()
+                print(result_message)
+            except Exception as exc:
+                print(f"❌ Có lỗi nghiêm trọng trong luồng: {exc}")
+
+    print("\n🎉 DONE – TIKI UPDATE COMPLETED")
+    print("📦 Total unique items in SEEN:", len(SEEN))
+
+```
+
+### Giải thích những thay đổi quan trọng:
+
+1. **`ThreadPoolExecutor`**: Đây là "nhà thầu" quản lý công nhân.
+* Mình set `MAX_WORKERS = 5`. Nghĩa là code sẽ mở 5 kết nối đến Tiki cùng một lúc. Khi một trang tải xong, luồng đó sẽ lập tức lấy trang tiếp theo trong danh sách làm tiếp.
+* Tốc độ sẽ nhanh gấp ~5 lần so với code cũ.
+
+
+2. **`FILE_LOCK = threading.Lock()`**:
+* Trong hàm `save_items_safe`, mình dùng lệnh `with FILE_LOCK:`.
+* Điều này bắt buộc các luồng phải **xếp hàng** khi ghi file. Nếu Luồng A đang ghi file, Luồng B phải đứng chờ A xong mới được ghi. Điều này đảm bảo file `.jsonl` không bị lỗi dòng hay mất dữ liệu.
+
+
+3. **Tách logic Crawl và Save**:
+* Hàm `crawl_single_page`: Chỉ lo việc tải data từ mạng về (việc này tốn thời gian nhất nên cần chạy song song).
+* Hàm `save_items_safe`: Chỉ lo việc check trùng và lưu (việc này rất nhanh nhưng cần an toàn).
+
+
+
+### Lưu ý khi chạy:
+
+* Nếu thấy mạng bị lỗi liên tục hoặc Tiki trả về lỗi HTTP 429 (Too Many Requests), hãy giảm `MAX_WORKERS` xuống còn `3` hoặc tăng thời gian `time.sleep` lên.
+* Vấn đề của code cũ là nó **tạo sẵn nhiệm vụ cho 100 trang** (Page 1 đến 100) ngay từ đầu. Dù trang 10 đã hết hàng, nó vẫn cắm đầu chạy tiếp trang 11, 12... đến 100, gây lãng phí thời gian và tài nguyên.
+
+Để giải quyết, chúng ta sẽ dùng kỹ thuật **"Cờ Hiệu" (Flag)**.
+
+### Giải pháp logic:
+
+1. Tạo một biến cờ hiệu `STOP_FLAGS` để theo dõi trạng thái của từng danh mục.
+2. Khi một luồng phát hiện trang web trả về **rỗng** (hết hàng), nó sẽ **bật cờ báo dừng** cho danh mục đó.
+3. Các luồng sau (ví dụ đang định cào trang 50, 60...) trước khi chạy sẽ ngước lên nhìn cờ. Nếu thấy cờ đã bật, nó sẽ **hủy bỏ ngay lập tức** và chuyển sang làm việc khác.
+
+Dưới đây là đoạn code đã nâng cấp tính năng **"Dừng thông minh"**:
+
+```python
+import requests
+import time
+import random
+import os
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from schema_shared import ProductItem
+
+print("📂 CWD =", os.getcwd())
+
+# ================== CONFIG ==================
+DATA_FOLDER = "data"
+os.makedirs(DATA_FOLDER, exist_ok=True)
+OUTPUT_FILE = os.path.join(DATA_FOLDER, "tiki_all.jsonl")
+
+# CẤU HÌNH ĐA LUỒNG
+MAX_WORKERS = 5  
+MAX_PAGES = 100 
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://tiki.vn/",
+}
+
+# CÁC KHÓA AN TOÀN
+FILE_LOCK = threading.Lock()
+SEEN = set()
+
+# [QUAN TRỌNG] Biến toàn cục để lưu trạng thái dừng của từng Category
+# Ví dụ: { 8313: False, 1951: True ... } -> True nghĩa là đã hết trang, cần dừng
+STOP_FLAGS = {} 
+
+# ================== HÀM HỖ TRỢ ==================
+def load_existing_data():
+    if not os.path.exists(OUTPUT_FILE):
+        return
+    print(f"🔄 Đang đọc dữ liệu cũ...")
+    count = 0
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if "id" in data:
+                        SEEN.add(data["id"])
+                        count += 1
+                except: continue
+    except: pass
+    print(f"✅ Đã tải {count} sản phẩm cũ vào bộ nhớ.")
+
+def save_items_safe(items, category_name):
+    new_items_count = 0
+    with FILE_LOCK:
+        with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+            for item in items:
+                pid = f"tiki_{item.get('id')}"
+                if pid in SEEN: continue
+                
+                SEEN.add(pid)
+                
+                original_price = item.get("list_price") or item.get("price")
+                product = ProductItem(
+                    id=pid,
+                    platform="tiki",
+                    title=item.get("name", ""),
+                    price=int(item.get("price", 0)),
+                    original_price=int(original_price or 0),
+                    url="https://tiki.vn/" + item.get("url_path", ""),
+                    image_url=item.get("thumbnail_url", ""),
+                    category=category_name,
+                    brand=item.get("brand_name", "No Brand"),
+                )
+                f.write(product.to_json_line() + "\n")
+                new_items_count += 1
+    return new_items_count
+
+# ================== WORKER (CÓ KIỂM TRA DỪNG) ==================
+def crawl_single_page(category_name, category_id, page):
+    # 1. KIỂM TRA CỜ HIỆU TRƯỚC KHI CHẠY
+    # Nếu danh mục này đã bị đánh dấu là "Hết trang" (True), thì bỏ qua ngay
+    if STOP_FLAGS.get(category_id) is True:
+        return f"⛔ {category_name} - Page {page}: Đã dừng vì hết trang trước đó."
+
+    url = (
+        "https://tiki.vn/api/personalish/v1/blocks/listings"
+        f"?limit=40&include=advertisement"
+        f"&aggregations=2&version=home-persionalized"
+        f"&trackity_id=123&category={category_id}&page={page}"
+    )
+
+    try:
+        time.sleep(random.uniform(0.5, 1.5)) # Sleep nhẹ
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        
+        if resp.status_code != 200:
+            return f"⚠️ {category_name} - Page {page}: Lỗi HTTP {resp.status_code}"
+
+        items = resp.json().get("data", [])
+        
+        # 2. LOGIC PHÁT HIỆN HẾT TRANG
+        if not items:
+            # Nếu trang trả về rỗng -> Đánh dấu vào từ điển toàn cục là STOP
+            STOP_FLAGS[category_id] = True
+            return f"🛑 {category_name} - Page {page}: RỖNG -> Kích hoạt dừng cào category này!"
+
+        # Lưu dữ liệu
+        added = save_items_safe(items, category_name)
+        return f"✅ {category_name} - Page {page}: Lấy {len(items)}, Mới {added}"
+
+    except Exception as e:
+        return f"❌ {category_name} - Page {page}: Lỗi {e}"
+
+# ================== MAIN ==================
+TIKI_CATEGORIES = [
+    {"name": "DODUNGPHONGNGU", "id": 8313},
+    {"name": "NHABEP", "id": 1951},
+    {"name": "PHONGAN", "id": 1954},
+    {"name": "NOITHAT", "id": 2150},
+    {"name": "TRANGTRINHACUA", "id": 1973},
+]
+
+if __name__ == "__main__":
+    load_existing_data()
+    
+    # Khởi tạo cờ hiệu: Ban đầu tất cả đều chưa dừng (False)
+    for cat in TIKI_CATEGORIES:
+        STOP_FLAGS[cat["id"]] = False
+    
+    # Tạo danh sách nhiệm vụ
+    all_tasks = []
+    for cat in TIKI_CATEGORIES:
+        for p in range(1, MAX_PAGES + 1):
+            all_tasks.append((cat["name"], cat["id"], p))
+            
+    print(f"\n🚀 BẮT ĐẦU: {len(all_tasks)} trang dự kiến (sẽ dừng sớm nếu hết).")
+    
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_page = {
+            executor.submit(crawl_single_page, t[0], t[1], t[2]): t 
+            for t in all_tasks
+        }
+        
+        for future in as_completed(future_to_page):
+            print(future.result())
+
+    print("\n🎉 HOÀN THÀNH - Code đã tự động bỏ qua các trang thừa.")
+    print("📦 Total unique items:", len(SEEN))
+
+```
+
+### Giải thích cơ chế hoạt động:
+
+1. **Biến `STOP_FLAGS**`: Đây là một cuốn sổ tay chung.
+* Ví dụ: `STOP_FLAGS = {8313: False, 1951: False}` (Ban đầu chưa ai dừng cả).
+
+
+2. **Khi gặp trang rỗng**:
+* Giả sử Worker đang chạy **Page 15** của danh mục `8313` và thấy kết quả trả về `[]` (rỗng).
+* Nó sẽ hét lên: "Hết hàng rồi!" bằng cách gán `STOP_FLAGS[8313] = True`.
+
+
+3. **Dừng thông minh**:
+* Các Worker khác đang chuẩn bị chạy **Page 16, 17, 100...** của danh mục `8313` sẽ kiểm tra cuốn sổ tay này trước.
+* Thấy `True` -> Nó lập tức trả về `⛔ Đã dừng` mà không cần gửi request lên Tiki nữa.
+* Luồng đó rảnh tay sẽ chuyển ngay sang làm danh mục khác (ví dụ `1951`).
+
+
+
+Cách này giúp bạn vẫn setup chạy 100 trang cho thoải mái, nhưng thực tế nếu trang 10 hết thì code sẽ dừng ngay, không chạy oan 90 trang còn lại.
+Nếu bạn crawl trùng data (tức là 1 sản phẩm bị ghi vào file 2 lần), sẽ có 3 hậu quả chính, nhưng **đừng lo**, code hiện tại của bạn đã được thiết kế để **CHẶN ĐỨNG** việc này.
+
+Dưới đây là phân tích cụ thể:
+
+### 1. Nếu KHÔNG có cơ chế chống trùng (Hậu quả)
+
+Giả sử bạn bỏ đoạn `if pid in SEEN` đi, thì:
+
+* **File phình to vô ích:** File `tiki_all.jsonl` sẽ chứa hàng nghìn dòng giống hệt nhau. Ví dụ cái "Nồi cơm điện Sharp" xuất hiện 50 lần. File nặng 1GB nhưng thực chất chỉ có 100MB dữ liệu thật.
+* **Thống kê sai lệch:** Khi bạn đếm số dòng, bạn tưởng mình có 60.000 sản phẩm, nhưng thực tế chỉ có 2.000 sản phẩm lặp đi lặp lại.
+* **Tốn thời gian xử lý sau này:** Khi đem data đi phân tích hoặc train AI, bạn lại mất công viết code để lọc lại từ đầu.
+
+---
+
+### 2. Nhưng code hiện tại của bạn ĐÃ AN TOÀN ✅
+
+Trong đoạn code mình đưa cho bạn (bản đa luồng mới nhất), việc trùng data **không thể xảy ra** nhờ "3 lớp bảo vệ":
+
+#### 🛡️ Lớp 1: Khôi phục trí nhớ (`load_existing_data`)
+
+Ngay khi bấm chạy, code làm việc này đầu tiên:
+
+```python
+# Đọc file cũ, nạp toàn bộ ID đã có vào RAM
+load_existing_data()
+
+```
+
+👉 Nếu hôm qua bạn đã cào cái "Ly giữ nhiệt (ID: 123)", thì hôm nay biến `SEEN` đã chứa số `123`.
+
+#### 🛡️ Lớp 2: Bộ lọc thời gian thực (`SEEN` set)
+
+Khi code chạy, trước khi ghi bất cứ thứ gì xuống file, nó đều hỏi:
+
+```python
+if pid in SEEN:
+    continue  # <--- Nếu thấy ID này quen quen (đã có trong RAM), BỎ QUA NGAY!
+
+```
+
+👉 Dù Tiki có cố tình hiển thị lại sản phẩm cũ ở trang khác, code cũng sẽ phớt lờ nó.
+
+#### 🛡️ Lớp 3: Khóa an toàn (`FILE_LOCK`)
+
+Vì bạn chạy đa luồng (5 người làm cùng lúc), sợ nhất là 2 người cùng tìm thấy 1 sản phẩm mới cùng 1 tích tắc.
+
+```python
+with FILE_LOCK:
+    if pid in SEEN: continue # Kiểm tra lần cuối cực kỹ
+    SEEN.add(pid)
+    f.write(...)
+
+```
+
+👉 Cái khóa `FILE_LOCK` bắt các luồng phải xếp hàng. Người này check xong, ghi xong, người kia mới được vào. Không bao giờ có chuyện 2 luồng ghi cùng 1 sản phẩm.
+
+---
+
+### 3. Trường hợp duy nhất bị trùng (Lưu ý)
+
+Code chỉ bó tay nếu bạn **mở 2 cửa sổ CMD và chạy 2 file code cùng một lúc**.
+
+* Lúc đó, cửa sổ A không biết cửa sổ B đang làm gì (vì 2 biến `SEEN` nằm ở 2 vùng nhớ RAM khác nhau).
+* **Lời khuyên:** Chỉ chạy **1 file script** tại 1 thời điểm thôi nhé.
+
+**Tóm lại:** Với code hiện tại, bạn cứ yên tâm chạy tiếp, file kết quả đảm bảo **Sạch - Độc nhất (Unique) - Không trùng lặp**.
+Chính xác 100%! Bạn hiểu hoàn toàn đúng vấn đề rồi đó.
+
+Để mình giải thích kỹ hơn cơ chế bên dưới dòng thông báo đó:
+
+`[thoi-trang-nu] - Page 5: Lấy 40, Mới 0`
+
+1. **"Lấy 40":** Nghĩa là code của bạn đã gửi yêu cầu thành công lên Tiki và Tiki trả về danh sách **40 sản phẩm** nằm ở trang số 5.
+2. **"Mới 0":**
+* Code cầm 40 sản phẩm đó, lần lượt so sánh ID của từng cái với danh sách `SEEN` (dữ liệu cũ đã nạp vào RAM).
+* Kết quả là: **Cả 40 sản phẩm này đều ĐÃ TỒN TẠI** trong file của bạn rồi.
+* Hành động: Code **bỏ qua**, không ghi thêm dòng nào vào file cả để tránh bị trùng lặp.
 
 
 
 ---
 
-### NẾU VẪN KHÔNG ĐƯỢC: HÃY CRAWL TIKI TRƯỚC!
+### 💡 Điều này báo hiệu gì?
 
-Trong lúc loay hoay với Shopee, nhóm bạn **đừng để thời gian chết**.
+Việc bạn thấy hàng loạt dòng xanh lá cây `Lấy 40, Mới 0` liên tục (như trong ảnh bạn gửi) chứng tỏ:
 
-* Shopee bảo mật rất gắt (lỗi 403), kể cả lấy được Cookie thì sau 30 phút nó cũng hết hạn, bạn lại phải lấy lại.
-* **Chiến thuật:** Hãy bảo 2 thành viên còn lại tập trung chạy **Tiki** cho đủ số lượng 500k-700k items trước (Tiki không cần Cookie, code chạy vèo vèo).
-* Sau khi xong Tiki, quay lại xử lý Shopee sau.
+1. **Dữ liệu vùng này đã "bão hòa":** Bạn đã cào sạch sành sanh 2.000 sản phẩm hiển thị của danh mục `thoi-trang-nu` (ID 931) rồi.
+2. **Code đang chạy lãng phí:** Nó vẫn tốn công tải về, tốn công so sánh, nhưng không thu hoạch được gì mới.
 
-**Bạn thử Cách 2 (curlconverter) xem, cách đó thường là cứu cánh cho sinh viên đấy!**
+👉 **Giải pháp ngay lập tức:**
+Bạn cần dừng code lại và áp dụng chiến thuật **"Chia nhỏ danh mục"** (Crawl Sub-categories) mà mình đã hướng dẫn ở câu trả lời trước (dùng script `get_all_categories.py`).
+
+Chỉ khi bạn thay ID to (`931`) bằng các ID nhỏ (ví dụ: `Ao-thun-nu`, `Vay-dam`...), bạn mới thấy con số `Mới` nhảy lên `40` trở lại!
+
+---
