@@ -4,190 +4,79 @@
 
 | Name | Student ID | Role | Contribution |
 |------|------------|------|--------------|
-| **Trịnh Khải Nguyên** | QE190129 | Crawler Lead | Crawling Ebay & Chợ Tốt, anti-bot strategy |
-| **Lê Hoàng Hữu** | QE190142 | Crawler | Crawling Tiki, Shopee, data normalization |
-| **Ngô Tuấn Hoàng** | QE190076 | Crawler | Crawling Tiki, Shopee, anti-bot detection |
+| **Trịnh Khải Nguyên** | QE190129 | Crawler Lead | Crawler (Ebay, Chợ Tốt), Anti-bot strategy |
+| **Lê Hoàng Hữu** | QE190142 | Crawler Dev | Crawler (Tiki, Shopee), Data normalization |
+| **Ngô Tuấn Hoàng** | QE190076 | Crawler Dev | Crawler (Tiki, Shopee), Performance optimization |
 
 ## 2. Project Description
 
-This project implements an e-commerce search engine that aggregates product data from major Vietnamese e-commerce platforms. The system focuses on automated data collection, scalable indexing, and effective ranking methods.
+This project implements an e-commerce search engine aggregating product data from major Vietnamese platforms (Shopee, Tiki, Chợ Tốt, eBay). The system focuses on automated data collection, scalable indexing (SPIMI), and effective ranking (BM25 + Semantic).
 
-### Key Functionalities
+### Key Features
 
-- **Data Collection**: Automated crawling with robust anti-bot detection handling.
-- **Indexing**: Text indexing using the SPIMI algorithm.
-- **Ranking**:
-  - Keyword-based: BM25.
-  - Semantic-based: Sentence Transformers.
-- **User Interface**: Web-based search interface and real-time monitoring dashboard.
+- **Data Collection**: Async crawlers with anti-bot handling (IP rotation, Browser Automation).
+- **Indexing**: Custom SPIMI implementation for large-scale indexing.
+- **Ranking**: Hybrid ranking using BM25 and Vector Search.
+- **Unified Schema**: Standardized `ProductItem` structure across all platforms.
 
-### Supported Platforms
+## 3. Dataset Statistics (Milestone 1)
 
-- Shopee
-- Tiki
-- Chợ Tốt
-- eBay
+**Total Collected:** **1,454,599 products**
 
-## 3. System Architecture & Technologies
+| Platform | Documents | Share | Status |
+| :--- | :--- | :--- | :--- |
+| **Shopee** | 800,284 | 55.0% | Included |
+| **Tiki** | 435,203 | 29.9% | Included |
+| **Chợ Tốt** | 114,370 | 7.9% | Included |
+| **eBay** | 104,742 | 7.2% | Included |
 
-The system follows a modular pipeline design:
+**Data Location:**
 
-### Tech Stack
+- **Full Dataset**: [Link to Google Drive/OneDrive]
+- **Sample Data**: `data_sample/` (for testing)
 
-- **Crawler**:
-  - Python: `playwright` (eBay), `aiohttp` (Chợ Tốt), `DrissionPage` (Shopee).
-- **Indexer**: Python (Custom SPIMI implementation).
-- **Ranking**: Python (BM25 & Vector Models).
-- **UI**: Streamlit (Python).
-- **Database**: SQLite & JSONL files.
+## 4. Setup & Usage
 
-## 4. Installation & Environment Setup
-
-### 4.1. Requirements
-
-- Python (>= version 3.10)
-- Git
-
-### 4.2. Step-by-Step Setup
-
-**Step 1: Clone the repository**
+### 4.1. Installation
 
 ```bash
-git clone <repository-url>
-cd seg301-ecommerce-search
-```
-
-**Step 2: Python Environment Setup**
-
-```bash
-# Create virtual environment
+# Python >= 3.10 required
 python -m venv venv
-
-# Activate environment
-# Windows:
-venv\Scripts\activate
-# Linux / macOS:
-source venv/bin/activate
-
-# Install dependencies
+# Windows: venv\Scripts\activate | Mac/Linux: source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 5. Execution & Usage
-
-### 5.1. Crawling Data
-
-Run the crawler scripts for each platform:
-
-**Shopee:**
+### 4.2. Running Crawlers
 
 ```bash
-# Cần cài DrissionPage & cấu hình Chrome
-python code\ hoang.py
-```
+# Shopee (Requires DrissionPage)
+python src/crawler/spiders/shopee_spider.py
 
-**eBay:**
-
-```bash
-python src/crawler/spiders/ebay_async_spider.py
-```
-
-**Chợ Tốt:**
-
-```bash
+# Tiki / Chợ Tốt / eBay (Async)
+python src/crawler/spiders/tiki_spider.py
 python src/crawler/spiders/chotot_async_spider.py
 ```
 
-**Tiki:**
+### 4.3. Indexing & Search (Upcoming)
 
 ```bash
-# (Đang phát triển)
-python src/crawler/spiders/tiki_spider.py
-```
-
-### 5.2. Indexing & Ranking
-
-Once data is collected, run the following scripts:
-
-```bash
-# Build Index (SPIMI)
+# Build Index
 python src/indexer/spimi.py
-
-# Run Ranking Algorithm (BM25)
-python src/ranking/bm25.py
-```
-
-### 5.3. Search Interface
-
-Launch the web application:
-
-```bash
+# Start Web UI
 streamlit run src/ui/app.py
 ```
 
-## 6. Dataset Description
-
-### 6.1. Data Responsibilities
-
-| Member | Platforms Assigned |
-|--------|--------------------|
-| Trịnh Khải Nguyên | Ebay, Chợ Tốt |
-| Lê Hoàng Hữu | Tiki, Shopee |
-| Ngô Tuấn Hoàng | Tiki, Shopee |
-
-### 6.2. Sample Dataset
-
-Located in `data_sample/`. Contains 100–200 products per platform for testing.
-
-### 6.3. Data Schema (Unified)
-
-All datasets follow a unified JSON structure (`ProductItem`):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique Key: `{platform}_{original_id}` |
-| `platform` | string | `shopee`, `tiki`, `chotot`, `ebay` |
-| `title` | string | Product Name (cleaned) |
-| `price` | int | Current Price (VND) |
-| `original_price` | int | Original Price (before discount) |
-| `url` | string | Product Link |
-| `image_url` | string | Thumbnail Link |
-| `rating` | float | Rating (0.0 - 5.0) |
-| `review_count` | int | Number of reviews |
-| `sold_count` | int | Number of items sold |
-| `location` | string | Seller location |
-| `brand` | string | Brand name |
-| `crawled_at` | int | Unix Timestamp |
-
-### 6.4. Full Dataset Access
-
-- **Link**: [Google Drive / OneDrive Link]
-- **Scale**: ~1,000,000 products
-- **Format**: JSONL and SQLite
-
-## 7. Project Structure
+## 5. Project Structure
 
 ```
 SEG301-Project/
-├── .gitignore
-├── README.md               # Project documentation
-├── requirements.txt        # Python dependencies
-├── ai_log.md               # AI debugging logs
-├── data_sample/            # Sample data files
-├── src/                    # Source code
-│   ├── crawler/            # Crawling module
-│   │   ├── spider.py       # Base logic
-│   │   ├── async_base_spider.py # Async Base
-│   │   ├── schema.py       # Unified Data Schema
-│   │   └── spiders/        # Platform specific spiders
-│   ├── indexer/            # SPIMI Indexing
-│   ├── ranking/            # BM25 & Semantic
-│   └── ui/                 # Streamlit App
-└── tests/                  # Unit tests
+├── docs/                   # Documentation & Reports
+├── data_sample/            # Sample JSONL files
+├── src/                    # Source Code
+│   ├── crawler/            # Spiders & verification scripts
+│   ├── indexer/            # SPIMI Algorithm
+│   ├── ranking/            # Ranking Logic
+│   └── ui/                 # Web Interface
+├── requirements.txt
+└── README.md
 ```
-
-## 8. Development Timeline
-
-- **Phase 1 (Weeks 1–4)**: Setup environment, Implement crawlers, Data cleaning.
-- **Phase 2 (Weeks 5–7)**: Implement SPIMI indexing, BM25 ranking.
-- **Phase 3 (Weeks 8–10)**: Build Search UI, Final testing.
