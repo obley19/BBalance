@@ -55,6 +55,7 @@ python src/crawler/spiders/shopee_spider.py
 # Tiki / Chợ Tốt / eBay (Async)
 python src/crawler/spiders/tiki_spider.py
 python src/crawler/spiders/chotot_async_spider.py
+python src/crawler/spiders/ebay_async_spider.py
 ```
 
 ### 4.3. Indexing & Search (Upcoming)
