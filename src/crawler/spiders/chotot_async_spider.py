@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict
 
 from ..async_base_spider import AsyncBaseSpider
+from ..schema import ProductItem
 
 # Cho Tot Categories
 CHOTOT_CATS = {
@@ -98,8 +99,6 @@ class ChototAsyncSpider(AsyncBaseSpider):
                 except Exception as e:
                     print(f"❌ [chotot] Error: {e}")
                     break
-
-from ...schema import ProductItem
 
     def parse_product(self, raw_data: dict) -> Optional[ProductItem]:
         """

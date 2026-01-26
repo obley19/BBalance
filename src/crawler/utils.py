@@ -11,6 +11,22 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
 ]
 
+# Platform specific configurations
+PLATFORM_CONFIGS = {
+    "shopee": {
+        "rate_limit": 2.0,
+        "base_url": "https://shopee.vn"
+    },
+    "tiki": {
+        "rate_limit": 1.0, 
+        "base_url": "https://tiki.vn"
+    },
+    "lazada": {
+        "rate_limit": 3.0,
+        "base_url": "https://www.lazada.vn"
+    }
+}
+
 
 def get_random_user_agent() -> str:
     """Return a random User-Agent string."""
