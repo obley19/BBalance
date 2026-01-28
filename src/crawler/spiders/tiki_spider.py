@@ -85,18 +85,18 @@ class TikiSpider(BaseSpider):
             
             return {
                 "id": product_id,
-                "platform": "Tiki",
+                "platform": "tiki",  # Luôn viết thường
                 "title": raw_data.get("name", ""),
                 "price": price,
                 "original_price": original_price,
-                "url": "https://tiki.vn/" + raw_data.get("url_path", ""),
+                "sold_count": raw_data.get('quantity_sold', {}).get('value', 0) if isinstance(raw_data.get('quantity_sold'), dict) else 0,
+                "link": "https://tiki.vn/" + raw_data.get("url_path", ""),  # Đổi từ 'url' sang 'link'
                 "image_url": raw_data.get("thumbnail_url", ""),
-                "brand": raw_data.get("brand_name", "No Brand"),
-                "crawled_at": self.get_timestamp(),
-                # Extra fields used in reference loop but not in schema strict check might be here
-                "category_id": str(raw_data.get('primary_category_path', '')), 
-                "rating": raw_data.get('rating_average', 0),
-                "sold_count": raw_data.get('quantity_sold', {}).get('value', 0) if isinstance(raw_data.get('quantity_sold'), dict) else 0
+                "category": str(raw_data.get('primary_category_path', '')),
+                "brand": raw_data.get("brand_name", "No Brand") or "No Brand",
+                "title_clean": "",
+                "title_segmented": "",
+                "source_file": ""
             }
         except Exception as e:
             print(f"❌ Parse Error: {e}")

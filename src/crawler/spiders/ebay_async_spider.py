@@ -60,9 +60,7 @@ class EbayParser:
             return 0.0
         return 0.0
 
-from ...schema import ProductItem
-
-    def parse_product(self, item_soup: BeautifulSoup, source: str, keyword: str) -> Optional[ProductItem]:
+    def parse_product(self, item_soup: BeautifulSoup, source: str, keyword: str) -> Optional[dict]:
         try:
             # 1. Title
             title_el = item_soup.select_one('.s-item__title') or item_soup.select_one('.s-card__title')
@@ -136,20 +134,21 @@ from ...schema import ProductItem
                      sold_count = int(sold_match.group(1).replace(',', '').replace('.', ''))
                  except: pass
 
-            return ProductItem(
-                id=f"{source}_{original_id}",
-                platform=source,
-                title=title,
-                price=int(price_val),
-                url=url,
-                image_url=image_url,
-                category=keyword,
-                rating=rating,
-                review_count=review_count,
-                sold_count=sold_count,
-                brand="No Brand", 
-                extra_data={"original_id": original_id}
-            )
+            return {
+                "id": f"{source}_{original_id}",
+                "platform": source.lower(),  # Luôn viết thường
+                "title": title,
+                "price": int(price_val),
+                "original_price": int(price_val),
+                "sold_count": sold_count,
+                "link": url,  # Đổi từ 'url' sang 'link'
+                "image_url": image_url,
+                "category": keyword,
+                "brand": "No Brand",
+                "title_clean": "",
+                "title_segmented": "",
+                "source_file": ""
+            }
         except Exception:
             return None
 

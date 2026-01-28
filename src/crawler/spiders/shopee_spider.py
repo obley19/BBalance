@@ -165,25 +165,27 @@ class ShopeeSpider(BaseSpider):
                     sold = l.replace('Đã bán','').strip()
 
             if price > 0:
+                # Parse sold_count to int
+                sold_int = 0
+                if sold:
+                    sold_clean = sold.replace('k', '000').replace('K', '000').replace('.', '').replace(',', '')
+                    if sold_clean.isdigit():
+                        sold_int = int(sold_clean)
+                
                 return {
                     "id": product_id,
-                    "platform": "Shopee",
+                    "platform": "shopee",  # Luôn viết thường
                     "title": title,
                     "price": price,
-                    # Reference doesn't strictly have original_price in list view usually, 
-                    # unless calculated. We'll set same as price or 0.
                     "original_price": price,
-                    "url": clean_link,
-                    # No image url in the text parsing logic of reference (it accesses ele), 
-                    # but here we only passed text lines. 
-                    # To get image, we would need to pass element or image src.
-                    # For now leave empty to match strict reference logic provided which used text.
-                    # Wait, reference code didn't extract image in the snippet I saw?
-                    # "row = {"title": title, "price": price, "sold": sold, "link": clean_link, ...}"
-                    # Yes, reference output didn't have image.
+                    "sold_count": sold_int,
+                    "link": clean_link,  # Đổi từ 'url' sang 'link'
                     "image_url": "", 
-                    "sold_count": sold, # String in reference, maybe convert to int if possible?
-                    "crawled_at": self.get_timestamp()
+                    "category": "",
+                    "brand": "No Brand",
+                    "title_clean": "",
+                    "title_segmented": "",
+                    "source_file": ""
                 }
             return {}
             

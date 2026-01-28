@@ -132,13 +132,11 @@ class ChototAsyncSpider(AsyncBaseSpider):
                 platform=self.source,
                 title=subject,
                 price=price_val,
-                url=url,
+                link=url,  # Đổi từ 'url' sang 'link'
                 image_url=image,
                 category=raw_data.get("category_name", ""),
-                brand=raw_data.get("company_ad", "No Brand") if raw_data.get("company_ad") else "No Brand",
-                location=location,
-                description=raw_data.get("body", ""),
-                extra_data={"original_id": original_id, "params": raw_data.get("params")}
+                sold_count=0,
+                brand=raw_data.get("company_ad", "No Brand") if raw_data.get("company_ad") else "No Brand"
             )
         except:
             return None
