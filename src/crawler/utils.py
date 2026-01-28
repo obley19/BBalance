@@ -21,9 +21,13 @@ PLATFORM_CONFIGS = {
         "rate_limit": 1.0, 
         "base_url": "https://tiki.vn"
     },
-    "lazada": {
-        "rate_limit": 3.0,
-        "base_url": "https://www.lazada.vn"
+    "chotot": {
+        "rate_limit": 0.5,
+        "base_url": "https://www.chotot.com"
+    },
+    "ebay": {
+        "rate_limit": 1.5,
+        "base_url": "https://www.ebay.com"
     }
 }
 

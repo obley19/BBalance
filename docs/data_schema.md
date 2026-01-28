@@ -18,10 +18,10 @@ Mỗi sản phẩm được lưu trữ dưới dạng một JSON Object với c�
 | original\_id | Int/String | **Yes** | ID gốc trên sàn | 123456 |
 | title | String | **Yes** | Tên sản phẩm (Raw) | "Điện thoại iPhone 15 Pro Max" |
 | price | Integer | **Yes** | Giá bán (Đã bỏ dấu chấm/phẩy) | 25000000 |
-| url | String | **Yes** | Link gốc sản phẩm | "https://tiki.vn/..." |
-| image\_url | String | No | Link ảnh thumbnail | "https://salt.tikicdn.com/..." |
+| url | String | **Yes** | Link gốc sản phẩm | "<https://tiki.vn/>..." |
+| image\_url | String | No | Link ảnh thumbnail | "<https://salt.tikicdn.com/>..." |
 | category | String | No | Danh mục sản phẩm | "Điện thoại \- Máy tính bảng" |
-| source | String | **Yes** | Nguồn dữ liệu (tiki, shopee, lazada) | "tiki" |
+| source | String | **Yes** | Nguồn dữ liệu (tiki, shopee, chotot, ebay) | "tiki" |
 | rating | Float | No | Điểm đánh giá trung bình | 4.8 |
 | sold\_count | Integer | No | Số lượng đã bán | 1200 |
 | description | String | No | Mô tả chi tiết (Raw HTML hoặc Text) | "\<p\>Sản phẩm chính hãng...\</p\>" |
@@ -52,8 +52,8 @@ Mỗi sản phẩm được lưu trữ dưới dạng một JSON Object với c�
   "original\_id": 738291,  
   "title": "Sách \- Tuổi Trẻ Đáng Giá Bao Nhiêu",  
   "price": 75000,  
-  "url": "\[https://tiki.vn/tuoi-tre-dang-gia-bao-nhieu-p738291.html\](https://tiki.vn/tuoi-tre-dang-gia-bao-nhieu-p738291.html)",  
-  "image\_url": "\[https://salt.tikicdn.com/cache/280x280/ts/product/\](https://salt.tikicdn.com/cache/280x280/ts/product/)...",  
+  "url": "\[<https://tiki.vn/tuoi-tre-dang-gia-bao-nhieu-p738291.html\>](<https://tiki.vn/tuoi-tre-dang-gia-bao-nhieu-p738291.html>)",  
+  "image\_url": "\[<https://salt.tikicdn.com/cache/280x280/ts/product/\>](<https://salt.tikicdn.com/cache/280x280/ts/product/>)...",  
   "category": "Sách tư duy \- Kỹ năng sống",  
   "source": "tiki",  
   "rating": 4.5,  
