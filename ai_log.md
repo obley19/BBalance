@@ -1,4 +1,4 @@
-# AI INTERACTION LOG - HỮU
+# AI INTERACTION LOG
 DATE 14/1/2026
 Đây là kế hoạch chi tiết dành cho nhóm 3 người, tập trung vào chiến lược "Chia để trị" để xử lý khối lượng 1.000.000 dữ liệu từ Shopee và Tiki, đảm bảo đáp ứng các yêu cầu khắt khe của đồ án.
 
