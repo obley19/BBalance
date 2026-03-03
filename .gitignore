@@ -32,5 +32,13 @@ data/processed/*
 data/indices/*
 !data/indices/.gitkeep
 
+# Chặn thư mục data chứa dữ liệu nặng
+data/
+*.jsonl
+
+# Chặn cache python
+__pycache__/
+*.pyc
+
 # --- Logs ---
 *.log
