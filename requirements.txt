@@ -1,4 +1,4 @@
-﻿# Core Crawling
+# Core Crawling
 requests>=2.31.0
 aiohttp>=3.9.0
 fake-useragent>=1.4.0
@@ -19,3 +19,7 @@ pytest>=7.4.0
 # Utils
 tqdm>=4.66.0
 python-dotenv>=1.0.0
+
+# Milestone 3 — Vector Search
+sentence-transformers>=2.3.0
+faiss-cpu>=1.7.4

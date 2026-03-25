@@ -1,0 +1,24 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.11, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\FPTSHOP\AppData\Local\Programs\Python\Python310\python.exe
+cachedir: .pytest_cache
+rootdir: D:\SEG\seg301-ecommerce-search
+plugins: anyio-4.12.1
+collecting ... collected 8 items
+
+tests/test_hybrid.py::TestHybridSearcher::test_hybrid_returns_results PASSED [ 12%]
+tests/test_hybrid.py::TestHybridSearcher::test_hybrid_returns_tuples PASSED [ 25%]
+tests/test_hybrid.py::TestHybridSearcher::test_hybrid_returns_sorted PASSED [ 37%]
+tests/test_hybrid.py::TestHybridSearcher::test_hybrid_includes_both_sources PASSED [ 50%]
+tests/test_hybrid.py::TestHybridSearcher::test_dynamic_weights_bm25_heavy PASSED [ 62%]
+tests/test_hybrid.py::TestHybridSearcher::test_dynamic_weights_vector_heavy PASSED [ 75%]
+tests/test_hybrid.py::TestHybridSearcher::test_dynamic_weights_balanced FAILED [ 87%]
+tests/test_hybrid.py::TestHybridSearcher::test_dynamic_weights_behavior_in_search PASSED [100%]
+
+================================== FAILURES ===================================
+______________ TestHybridSearcher.test_dynamic_weights_balanced _______________
+tests\test_hybrid.py:99: in test_dynamic_weights_balanced
+    assert w_bm25 == 0.6
+E   assert 0.2 == 0.6
+=========================== short test summary info ===========================
+FAILED tests/test_hybrid.py::TestHybridSearcher::test_dynamic_weights_balanced
+========================= 1 failed, 7 passed in 0.51s =========================

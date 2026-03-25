@@ -1,0 +1,97 @@
+{
+  "description": "Ground truth dataset cho E-Commerce Search Engine evaluation. Mỗi query có danh sách doc_ids liên quan (relevant) và không liên quan (irrelevant) - được đánh giá thủ công.",
+  "version": "1.0",
+  "created_by": "Lê Hoàng Hữu - QE190142",
+  "queries": [
+    {
+      "query": "iphone 15 pro max",
+      "category": "exact_product",
+      "relevant_docs": ["shopee_iphone15pm_001", "tiki_iphone15pm_002", "shopee_iphone15pm_003"],
+      "notes": "Sản phẩm chính xác, không phụ kiện"
+    },
+    {
+      "query": "samsung galaxy s24",
+      "category": "exact_product",
+      "relevant_docs": ["tiki_samsungs24_001", "shopee_samsungs24_002"],
+      "notes": "Galaxy S24 chính hãng"
+    },
+    {
+      "query": "tai nghe bluetooth",
+      "category": "category_search",
+      "relevant_docs": ["shopee_tainghe_001", "tiki_tainghe_002", "chotot_tainghe_003"],
+      "notes": "Bất kỳ tai nghe bluetooth nào"
+    },
+    {
+      "query": "ip 15 prm",
+      "category": "abbreviation",
+      "relevant_docs": ["shopee_iphone15pm_001", "tiki_iphone15pm_002", "shopee_iphone15pm_003"],
+      "notes": "Test query expansion: ip->iphone, prm->pro max"
+    },
+    {
+      "query": "laptop gaming",
+      "category": "category_search",
+      "relevant_docs": ["shopee_laptop_001", "tiki_laptop_002"],
+      "notes": "Laptop gaming các hãng"
+    },
+    {
+      "query": "sạc dự phòng",
+      "category": "category_search",
+      "relevant_docs": ["shopee_sac_001", "tiki_sac_002", "chotot_sac_003"],
+      "notes": "Pin sạc dự phòng"
+    },
+    {
+      "query": "điện thoại giá rẻ",
+      "category": "broad_search",
+      "relevant_docs": ["shopee_dtgr_001", "tiki_dtgr_002", "chotot_dtgr_003"],
+      "notes": "Điện thoại phân khúc giá rẻ"
+    },
+    {
+      "query": "macbook air m2",
+      "category": "exact_product",
+      "relevant_docs": ["shopee_macbook_001", "tiki_macbook_002"],
+      "notes": "MacBook Air M2 cụ thể"
+    },
+    {
+      "query": "ss galaxy",
+      "category": "abbreviation",
+      "relevant_docs": ["tiki_samsungs24_001", "shopee_samsungs24_002"],
+      "notes": "Test query expansion: ss->samsung"
+    },
+    {
+      "query": "ốp lưng iphone 14",
+      "category": "accessory",
+      "relevant_docs": ["shopee_oplung_001", "tiki_oplung_002"],
+      "notes": "Phụ kiện: ốp lưng"
+    },
+    {
+      "query": "máy tính bảng",
+      "category": "category_search",
+      "relevant_docs": ["shopee_tablet_001", "tiki_tablet_002"],
+      "notes": "Tablet các loại"
+    },
+    {
+      "query": "chuột không dây",
+      "category": "category_search",
+      "relevant_docs": ["shopee_mouse_001", "tiki_mouse_002"],
+      "notes": "Chuột wireless"
+    },
+    {
+      "query": "xiaomi redmi note 13",
+      "category": "exact_product",
+      "relevant_docs": ["shopee_xiaomi_001", "tiki_xiaomi_002"],
+      "notes": "Sản phẩm cụ thể Xiaomi"
+    },
+    {
+      "query": "camera hành trình",
+      "category": "category_search",
+      "relevant_docs": ["shopee_camera_001", "chotot_camera_002"],
+      "notes": "Dashcam ô tô"
+    },
+    {
+      "query": "apple watch",
+      "category": "exact_product",
+      "relevant_docs": ["shopee_applewatch_001", "tiki_applewatch_002"],
+      "notes": "Apple Watch các series"
+    }
+  ]
+}

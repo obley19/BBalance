@@ -1,6 +1,6 @@
-# Index Compression - Nén chỉ mục (phần mở rộng)
-# Triển khai Variable Byte Encoding và Elias Gamma Encoding
-
+# Index Compression - Nén chỉ mục
+# Milestone 2: Variable Byte + Gamma Encoding (lý thuyết)
+# Milestone 3: Tích hợp compress/decompress toàn bộ index vào pipeline
 
 def variable_byte_encode(number):
     """
@@ -17,7 +17,6 @@ def variable_byte_encode(number):
             break
         number = number // 128
 
-    # Đánh dấu byte cuối cùng (bit cao = 1)
     result[-1] += 128
     return bytes(result)
 
@@ -28,10 +27,8 @@ def variable_byte_decode(data):
     n = 0
     for byte in data:
         if byte < 128:
-            # Chưa phải byte cuối -> tích lũy
             n = 128 * n + byte
         else:
-            # Byte cuối -> hoàn thành 1 số
             n = 128 * n + (byte - 128)
             numbers.append(n)
             n = 0
@@ -47,14 +44,129 @@ def gamma_encode(number):
     if number <= 0:
         raise ValueError("Gamma encoding chi dung cho so > 0")
 
-    # Chuyển sang nhị phân
-    binary = bin(number)[2:]  # bỏ prefix "0b"
+    binary = bin(number)[2:]
     length = len(binary)
 
-    # Phần unary: (length-1) bit 1 + 1 bit 0
     unary = '1' * (length - 1) + '0'
-
-    # Phần offset: binary bỏ bit đầu
     offset = binary[1:]
 
     return unary + offset
+
+
+def gamma_decode(bitstring):
+    """
+    Giải mã chuỗi bit Elias Gamma thành danh sách số nguyên.
+
+    Args:
+        bitstring: Chuỗi '0' và '1'
+
+    Returns:
+        List[int]: Các số đã decode
+    """
+    numbers = []
+    i = 0
+
+    while i < len(bitstring):
+        # Đếm bit '1' liên tiếp (phần unary)
+        length = 1
+        while i < len(bitstring) and bitstring[i] == '1':
+            length += 1
+            i += 1
+
+        i += 1  # Bỏ qua bit '0' kết thúc unary
+
+        # Đọc (length-1) bit offset
+        offset = bitstring[i:i + length - 1]
+        i += length - 1
+
+        # Ghép: '1' + offset = số gốc
+        number = int('1' + offset, 2)
+        numbers.append(number)
+
+    return numbers
+
+
+# ============================================================
+# Milestone 3: Nén/giải nén toàn bộ inverted index
+# ============================================================
+
+def compress_index(inverted_index):
+    """
+    Nén toàn bộ inverted index bằng VB Encoding + Delta Encoding.
+
+    Quy trình:
+    1. Gán mỗi doc_id (string) → integer ID tăng dần
+    2. Sort postings theo int ID
+    3. Delta encoding: lưu gap thay vì ID tuyệt đối
+    4. VB encoding: nén gap + tf thành bytes
+
+    Args:
+        inverted_index: {term: [(doc_id_str, tf), ...]}
+
+    Returns:
+        compressed: {term: bytes}
+        doc_id_to_int: {doc_id_str: int}
+    """
+    # Bước 1: Tạo mapping doc_id string → integer
+    doc_id_to_int = {}
+    next_id = 1
+
+    for postings in inverted_index.values():
+        for doc_id_str, _ in postings:
+            if doc_id_str not in doc_id_to_int:
+                doc_id_to_int[doc_id_str] = next_id
+                next_id += 1
+
+    # Bước 2: Nén từng term
+    compressed = {}
+    for term, postings in inverted_index.items():
+        # Chuyển sang integer IDs và sort
+        int_postings = [
+            (doc_id_to_int[doc_id_str], tf)
+            for doc_id_str, tf in postings
+        ]
+        int_postings.sort(key=lambda x: x[0])
+
+        # Delta + VB encode
+        encoded = bytearray()
+        prev = 0
+        for did, tf in int_postings:
+            gap = did - prev
+            prev = did
+            encoded.extend(variable_byte_encode(gap))
+            encoded.extend(variable_byte_encode(tf))
+
+        compressed[term] = bytes(encoded)
+
+    return compressed, doc_id_to_int
+
+
+def decompress_index(compressed_index, int_to_doc_id):
+    """
+    Giải nén toàn bộ inverted index.
+
+    Args:
+        compressed_index: {term: bytes}
+        int_to_doc_id: {int: doc_id_str}
+
+    Returns:
+        {term: [(doc_id_str, tf), ...]}
+    """
+    index = {}
+
+    for term, data in compressed_index.items():
+        numbers = variable_byte_decode(data)
+        postings = []
+        prev = 0
+
+        for i in range(0, len(numbers) - 1, 2):
+            gap = numbers[i]
+            tf = numbers[i + 1]
+            did = prev + gap
+            prev = did
+            doc_id_str = int_to_doc_id.get(did, str(did))
+            postings.append((doc_id_str, tf))
+
+        index[term] = postings
+
+    return index

@@ -30,14 +30,33 @@ class BM25Ranker:
 
     def load_index(self, index_dir):
         """Load inverted index và metadata từ đĩa."""
+        import os
         
-        # Đọc inverted index (do SPIMI tạo ra)
-        index_path = index_dir + "/inverted_index.pkl"
-        with open(index_path, 'rb') as f:
-            self.inverted_index = pickle.load(f)
+        # Mở rộng Milestone 3: Ưu tiên đọc Compressed Index trước nếu có
+        compressed_path = os.path.join(index_dir, "compressed_index.pkl")
+        mapping_path = os.path.join(index_dir, "doc_id_mapping.pkl")
+        raw_index_path = os.path.join(index_dir, "inverted_index.pkl")
+
+        if os.path.exists(compressed_path) and os.path.exists(mapping_path):
+            print("Loading Compressed Index (Milestone 3)...")
+            from src.indexer.compression import decompress_index
+            
+            with open(compressed_path, 'rb') as f:
+                compressed_index = pickle.load(f)
+            with open(mapping_path, 'rb') as f:
+                doc_id_to_int = pickle.load(f)
+                
+            int_to_doc_id = {v: k for k, v in doc_id_to_int.items()}
+            
+            print("Decompressing Index into RAM...")
+            self.inverted_index = decompress_index(compressed_index, int_to_doc_id)
+        else:
+            print("Loading raw inverted_index.pkl (Fallback)...")
+            with open(raw_index_path, 'rb') as f:
+                self.inverted_index = pickle.load(f)
 
         # Đọc metadata (doc_count, doc_lengths, avg_doc_length)
-        meta_path = index_dir + "/metadata.pkl"
+        meta_path = os.path.join(index_dir, "metadata.pkl")
         with open(meta_path, 'rb') as f:
             metadata = pickle.load(f)
 

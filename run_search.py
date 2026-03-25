@@ -3,6 +3,7 @@
 
 import os
 import time
+import argparse
 from src.search.engine import SearchEngine
 
 
@@ -17,12 +18,18 @@ def format_price(amount):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="E-Commerce Search Engine Console")
+    parser.add_argument("--mode", type=str, choices=["bm25", "hybrid"], default="bm25",
+                        help="Chế độ tìm kiếm: 'bm25' (keyword cơ bản) hoặc 'hybrid' (kết hợp vector semantic)")
+    args = parser.parse_args()
+
     print("=" * 70)
     print("  E-COMMERCE SEARCH ENGINE - Console App")
     print("=" * 70)
 
     index_dir = "data/index"
     data_path = "data/MASTER_DATA_CLEAN.jsonl"
+    vector_index_dir = "data/vector_index"
 
     # Kiểm tra xem đã build index chưa
     if not os.path.exists(index_dir):
@@ -30,10 +37,15 @@ def main():
         print("Please run build_index.py first.")
         return
 
-    # Khởi tạo và load engine
-    engine = SearchEngine(index_dir=index_dir, data_path=data_path)
+    # Khởi tạo và load engine với mode được chỉ định
+    engine = SearchEngine(
+        index_dir=index_dir,
+        data_path=data_path,
+        search_mode=args.mode,
+        vector_index_dir=vector_index_dir
+    )
 
-    print("\nLoading Search Engine...")
+    print(f"\nLoading Search Engine in {args.mode.upper()} mode...")
     start = time.time()
     engine.load()
     print(f"Loading completed in {time.time() - start:.2f} seconds.\n")
