@@ -10,16 +10,17 @@
 
 ## 2. Project Description
 
-This project implements an e-commerce search engine aggregating product data from major Vietnamese platforms (Shopee, Tiki, Chợ Tốt, eBay). The system focuses on automated data collection, scalable indexing (SPIMI), and effective ranking (BM25 + Semantic).
+This project implements an e-commerce search engine aggregating product data from major Vietnamese platforms (Shopee, Tiki, Chợ Tốt, eBay). The system focuses on automated data collection, scalable indexing (SPIMI), and effective ranking (BM25 + Semantic AI).
 
-### Key Features
+### Key Features (Milestone 3 Completed)
 
-- **Data Collection**: Async crawlers with anti-bot handling (IP rotation, Browser Automation).
-- **Indexing**: Custom SPIMI implementation for large-scale indexing.
-- **Ranking**: Hybrid ranking using BM25 and Vector Search.
-- **Unified Schema**: Standardized `ProductItem` structure across all platforms.
+- **Vector Search (Semantic AI)**: Powered by `PhoBERT` (`sup-SimCSE-Vietnamese-phobert-base`) and `FAISS` to match products contextually and semantically instead of exact-matching.
+- **Hybrid Ranking Engine**: Implements **Reciprocal Rank Fusion (RRF)** to combine both lexical (BM25) and semantic (Vector) search with **Dynamic Weighting** via query intent analysis.
+- **Evaluation Framework**: Automated evaluation suite calculating Information Retrieval (IR) metrics: `Precision@K`, `Recall@K`, `nDCG@K`, `MRR`, and `F1@K`.
+- **Modern Web Interface**: A beautifully designed Glassmorphism web UI built with `Streamlit` featuring multiple operational modes (BM25, Vector, Hybrid), deep filters, and real-time response limits.
+- **Data Collection & Indexing**: Async crawlers with anti-bot handling and a custom SPIMI implementation for large-scale indexing.
 
-## 3. Dataset Statistics (Milestone 1)
+## 3. Dataset Statistics
 
 **Total Collected:** **1,454,599 products**
 
@@ -31,9 +32,8 @@ This project implements an e-commerce search engine aggregating product data fro
 | **eBay** | 104,742 | 7.2% | Included |
 
 **Data Location:**
-
-- **Full Dataset**: [Link to Google Drive/OneDrive]
-- **Sample Data**: `data_sample/` (for testing)
+- **Full Dataset**: Contact Team / [Google Drive Link]
+- **Sample Data**: `data_sample/` (for format exploration)
 
 ## 4. Setup & Usage
 
@@ -58,26 +58,40 @@ python src/crawler/spiders/chotot_async_spider.py
 python src/crawler/spiders/ebay_async_spider.py
 ```
 
-### 4.3. Indexing & Search (Upcoming)
+### 4.3. Indexing & Search Engine 
 
 ```bash
-# Build Index
+# 1. Build Inverted Index (BM25)
 python src/indexer/spimi.py
-# Start Web UI
+
+# 2. Build Vector Index (PhoBERT + FAISS)
+python build_vector_index.py
+
+# 3. Start the Web UI Dashboard
 streamlit run src/ui/app.py
+```
+
+### 4.4. System Evaluation
+
+```bash
+# Evaluate System Quality across 15 standard Queries (Ground Truth)
+python evaluate.py
 ```
 
 ## 5. Project Structure
 
 ```
 SEG301-Project/
-├── docs/                   # Documentation & Reports
-├── data_sample/            # Sample JSONL files
+├── docs/                   # Milestone Reports & Architecture Reviews
+├── data_sample/            # Sample JSONL & Output files
 ├── src/                    # Source Code
 │   ├── crawler/            # Spiders & verification scripts
-│   ├── indexer/            # SPIMI Algorithm
-│   ├── ranking/            # Ranking Logic
-│   └── ui/                 # Web Interface
+│   ├── indexer/            # SPIMI & Compression
+│   ├── ranking/            # BM25, Vector Search, & Hybrid Ranking
+│   ├── evaluation/         # Metrics (nDCG@K, MRR) & Ground truth JSON
+│   └── ui/                 # Web Interface UI (Streamlit)
+├── evaluate.py             # Evaluation Script
+├── build_vector_index.py   # Vector Encoding Script
 ├── requirements.txt
 └── README.md
 ```
